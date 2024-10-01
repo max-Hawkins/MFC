@@ -27,6 +27,8 @@ module m_mpi_proxy
 
     use m_mpi_common
 
+    use m_nvtx
+
     use ieee_arithmetic
     ! ==========================================================================
 
@@ -1077,10 +1079,12 @@ contains
                     !$acc update host(q_cons_buff_send, ib_buff_send)
                 #:endif
 
+                call nvtxStartRange("RHS-MPI-SENDRECV")
                 call MPI_SENDRECV( &
                     p_send, buffer_count, MPI_DOUBLE_PRECISION, dst_proc, send_tag, &
                     p_recv, buffer_count, MPI_DOUBLE_PRECISION, src_proc, recv_tag, &
                     MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
+                call nvtxEndRange
 
                 #:if rdma_mpi
                     !$acc end host_data
