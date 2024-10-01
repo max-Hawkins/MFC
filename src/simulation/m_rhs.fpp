@@ -750,7 +750,7 @@ contains
             gm_alpha_qp%vf)
         call nvtxEndRange
 
-        call nvtxStartRange("RHS-MPI")
+        call nvtxStartRange("RHS-MPI+BufPack")
         call s_populate_variables_buffers(q_prim_qp%vf, pb, mv)
         call nvtxEndRange
 
@@ -983,6 +983,13 @@ contains
         ! END: Additional pphysics and source terms ============================
 
         if (run_time_info .or. probe_wrt .or. ib) then
+
+            ix%beg = -buff_size; iy%beg = 0; iz%beg = 0
+            if (n > 0) iy%beg = -buff_size;
+            if (p > 0) iz%beg = -buff_size;
+            ix%end = m - ix%beg; iy%end = n - iy%beg; iz%end = p - iz%beg
+            !$acc update device(ix, iy, iz)
+
             !$acc parallel loop collapse(4) gang vector default(present)
             do i = 1, sys_size
                 do l = idwbuff(3)%beg, idwbuff(3)%end
