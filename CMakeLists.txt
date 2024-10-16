@@ -17,6 +17,7 @@ project(MFC LANGUAGES C CXX Fortran)
 # Build options exposed to users and their default values.
 
 option(MFC_MPI           "Build with MPI"                                     ON)
+option(MFC_ZFP           "Build with ZFP"                                     ON)
 option(MFC_OpenACC       "Build with OpenACC"                                OFF)
 option(MFC_GCov          "Build with GCov"                                   OFF)
 option(MFC_Unified       "Build with unified CPU & GPU memory (GH-200 only)" OFF)
@@ -306,6 +307,10 @@ macro(HANDLE_SOURCES target useCommon)
         list(APPEND ${target}_SRCs ${common_F90s})
     endif()
 
+    file(GLOB ${target}_Cs CONFIGURE_DEPENDS "${${target}_DIR}/*.c"
+                                               "${CMAKE_BINARY_DIR}/modules/${target}/*.c")
+    list(APPEND ${target}_SRCs ${${target}_Cs})
+
     # Gather:
     # *          src/[<target>,(common)]/*.fpp]
     # * (if any) <build>/modules/<target>/*.fpp
@@ -421,6 +426,13 @@ function(MFC_SETUP_TARGET)
 
             target_compile_definitions(${a_target} PRIVATE MFC_MPI)
             target_link_libraries     (${a_target} PRIVATE MPI::MPI_Fortran)
+        endif()
+
+        if (MFC_ZFP)
+            find_package(ZFP REQUIRED)
+
+            target_compile_definitions(${a_target} PRIVATE MFC_ZFP)
+            target_link_libraries(${a_target} PRIVATE zfp::zfp)
         endif()
 
         if (ARGS_SILO)
