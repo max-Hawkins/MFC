@@ -21,6 +21,8 @@ program p_main
     use m_start_up
 
     use m_time_steppers
+
+    use m_compress
     ! ==========================================================================
 
     implicit none
@@ -94,6 +96,8 @@ program p_main
         call system_clock(cpu_end)
     end do
     ! ==========================================================================
+
+    call s_compress_recap()
 
     deallocate (proc_time, io_proc_time)
 
