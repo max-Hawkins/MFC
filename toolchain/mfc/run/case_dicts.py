@@ -228,6 +228,7 @@ SIMULATION.update({
     'low_Mach': ParamType.INT,
     'surface_tension': ParamType.LOG,
     'viscous': ParamType.LOG,
+    'zfp_halo': ParamType.LOG,
 })
 
 for var in [ 'diffusion', 'reactions' ]:

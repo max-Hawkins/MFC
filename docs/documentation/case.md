@@ -92,11 +92,15 @@ Definition of the parameters is described in the following subsections.
 | ---:             |    :----:      |          :---                             |
 | `run_time_info`  | Logical        | Output run-time information               |
 | `rdma_mpi`       | Logical        | (GPUs) Enable RDMA for MPI communication. |
+| `zfp_halo`       | Logical        | Compresses exchanged halo data using ZFP  |
 
 - `run_time_info` generates a text file that includes run-time information including the CFL number(s) at each time-step.
 - `rdma_mpi` optimizes data transfers between GPUs using Remote Direct Memory Access (RDMA).
 The underlying MPI implementation and communication infrastructure must support this
 feature, detecting GPU pointers and performing RDMA accordingly.
+- `zfp_halo` compresses the halo region data that is exchanged with nearest-neighbor
+processes using ZFP. This may not necessarily lead to runtime speedups. User consideration
+is heavily advised.
 
 ### 2. Computational Domain
 

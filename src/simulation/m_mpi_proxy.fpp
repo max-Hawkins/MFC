@@ -29,8 +29,6 @@ module m_mpi_proxy
 
     use m_nvtx
 
-    use m_compress
-
     use ieee_arithmetic
     ! ==========================================================================
 
@@ -878,10 +876,6 @@ contains
         integer :: pack_offset, unpack_offset
         real(kind(0d0)), pointer :: p_send, p_recv
 
-        type(t_compress_state) :: compress_1_state_send, compress_1_state_recv
-        integer :: compress_1_send_offset, compress_1_recv_offset
-        byte, pointer :: fp_1_byte_buff_send
-        byte, pointer :: fp_1_byte_buff_recv
 #ifdef MFC_MPI
 
         !$acc update device(v_size)
