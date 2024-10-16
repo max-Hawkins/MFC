@@ -467,7 +467,7 @@ module m_global_parameters
     real(kind(0d0)) :: mytime       !< Current simulation time
     real(kind(0d0)) :: finaltime    !< Final simulation time
 
-    logical :: weno_flat, riemann_flat, rdma_mpi
+    logical :: weno_flat, riemann_flat, rdma_mpi, zfp_halo
 
 #ifdef CRAY_ACC_WAR
     @:CRAY_DECLARE_GLOBAL(type(pres_field), dimension(:), pb_ts)
@@ -546,6 +546,7 @@ contains
         weno_flat = .true.
         riemann_flat = .true.
         rdma_mpi = .false.
+        zfp_halo = .false.
 
         #:if not MFC_CASE_OPTIMIZATION
             mapped_weno = .false.
@@ -1116,12 +1117,12 @@ contains
         @:ALLOCATE_GLOBAL(x_cc(-buff_size:m + buff_size))
         @:ALLOCATE_GLOBAL(dx(-buff_size:m + buff_size))
 
-        if (n == 0) return; 
+        if (n == 0) return;
         @:ALLOCATE_GLOBAL(y_cb(-1 - buff_size:n + buff_size))
         @:ALLOCATE_GLOBAL(y_cc(-buff_size:n + buff_size))
         @:ALLOCATE_GLOBAL(dy(-buff_size:n + buff_size))
 
-        if (p == 0) return; 
+        if (p == 0) return;
         @:ALLOCATE_GLOBAL(z_cb(-1 - buff_size:p + buff_size))
         @:ALLOCATE_GLOBAL(z_cc(-buff_size:p + buff_size))
         @:ALLOCATE_GLOBAL(dz(-buff_size:p + buff_size))
@@ -1187,10 +1188,10 @@ contains
         ! Deallocating grid variables for the x-, y- and z-directions
         @:DEALLOCATE_GLOBAL(x_cb, x_cc, dx)
 
-        if (n == 0) return; 
+        if (n == 0) return;
         @:DEALLOCATE_GLOBAL(y_cb, y_cc, dy)
 
-        if (p == 0) return; 
+        if (p == 0) return;
         @:DEALLOCATE_GLOBAL(z_cb, z_cc, dz)
 
     end subroutine s_finalize_global_parameters_module
