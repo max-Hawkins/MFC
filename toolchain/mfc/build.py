@@ -136,6 +136,8 @@ class MFCTarget:
             # Fortran .mod include directories. Currently used for the HIPFORT
             # dependency that has this missing from its config files.
             f"-DCMAKE_Fortran_MODULE_DIRECTORY={mod_dirs}",
+            # ZFP
+            f"-DZFP_DIR=/storage/home/hcoda1/7/mhawkins60/local/zfp/build_mfc/"
         ]
 
         if ARG("verbose"):

@@ -17,6 +17,7 @@ project(MFC LANGUAGES C CXX Fortran)
 # Build options exposed to users and their default values.
 
 option(MFC_MPI           "Build with MPI"                                     ON)
+option(MFC_ZFP           "Build with ZFP"                                     ON)
 option(MFC_OpenACC       "Build with OpenACC"                                OFF)
 option(MFC_GCov          "Build with GCov"                                   OFF)
 option(MFC_Unified       "Build with unified CPU & GPU memory (GH-200 only)" OFF)
@@ -127,7 +128,7 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
 
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_compile_options(
-            -Wall 
+            -Wall
             -fcheck=all,no-array-temps
             -fbacktrace
             -fimplicit-none
@@ -140,7 +141,7 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
         add_compile_options(
             $<$<COMPILE_LANGUAGE:Fortran>:-fallow-invalid-boz>
             $<$<COMPILE_LANGUAGE:Fortran>:-fallow-argument-mismatch>
-            $<$<COMPILE_LANGUAGE:Fortran>:-fcheck=bounds>            
+            $<$<COMPILE_LANGUAGE:Fortran>:-fcheck=bounds>
         )
     endif()
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Cray")
@@ -153,7 +154,7 @@ elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "Cray")
     )
 
     add_link_options("SHELL:-hkeepfiles")
-    
+
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_compile_options(
                 "SHELL:-h acc_model=auto_async_none"
@@ -227,7 +228,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
 	    else()
             message(STATUS "IPO / LTO is NOT available")
         endif()
-    endif() 
+    endif()
 endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -291,7 +292,7 @@ macro(HANDLE_SOURCES target useCommon)
 
     string(TOUPPER ${target} ${target}_UPPER)
 
-    # Gather: 
+    # Gather:
     # *          src/[<target>,(common)]/*.f90
     # * (if any) <build>/modules/<target>/*.f90
     file(GLOB ${target}_F90s CONFIGURE_DEPENDS "${${target}_DIR}/*.f90"
@@ -301,6 +302,10 @@ macro(HANDLE_SOURCES target useCommon)
         file(GLOB common_F90s CONFIGURE_DEPENDS "${common_DIR}/*.f90")
         list(APPEND ${target}_SRCs ${common_F90s})
     endif()
+
+    file(GLOB ${target}_Cs CONFIGURE_DEPENDS "${${target}_DIR}/*.c"
+                                               "${CMAKE_BINARY_DIR}/modules/${target}/*.c")
+    list(APPEND ${target}_SRCs ${${target}_Cs})
 
     # Gather:
     # *          src/[<target>,(common)]/*.fpp]
@@ -384,7 +389,7 @@ function(MFC_SETUP_TARGET)
     # A little hacky, but it *is* an edge-case for *one* compiler.
     if (NVHPC_USE_TWO_PASS_IPO)
         add_library(${ARGS_TARGET}_lib OBJECT ${ARGS_SOURCES})
-        target_compile_options(${ARGS_TARGET}_lib PRIVATE 
+        target_compile_options(${ARGS_TARGET}_lib PRIVATE
 		    $<$<COMPILE_LANGUAGE:Fortran>:-Mextract=lib:${ARGS_TARGET}_lib>
 	        $<$<COMPILE_LANGUAGE:Fortran>:-Minline>
     	)
@@ -417,6 +422,13 @@ function(MFC_SETUP_TARGET)
 
             target_compile_definitions(${a_target} PRIVATE MFC_MPI)
             target_link_libraries     (${a_target} PRIVATE MPI::MPI_Fortran)
+        endif()
+
+        if (MFC_ZFP)
+            find_package(ZFP REQUIRED)
+
+            target_compile_definitions(${a_target} PRIVATE MFC_ZFP)
+            target_link_libraries(${a_target} PRIVATE zfp::zfp)
         endif()
 
         if (ARGS_SILO)
