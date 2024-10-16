@@ -1074,8 +1074,10 @@ contains
         #:endfor
 
         ! Send/Recv
-        #:for rdma_mpi in [False, True]
-            if (rdma_mpi .eqv. ${'.true.' if rdma_mpi else '.false.'}$) then
+        #:for rdma_mpi, zfp_halo in [(True, True), (False, True), (True, False), (False, False)]
+        if ((rdma_mpi .eqv. ${'.true.' if rdma_mpi else '.false.'}$) &
+            .and. (zfp_halo .eqv. ${'.true.' if zfp_halo else '.false.'}$)) then
+
                 p_send => q_cons_buff_send(0)
                 p_recv => q_cons_buff_recv(0)
                 #:if rdma_mpi
