@@ -10,20 +10,21 @@ c_l = math.sqrt( 1.4*ps/rho )
 vel = 230.
 
 leng = 1.
-Ny = 100.
+Ny = 1000.
 Nx = Ny*3
 dx = leng/Nx
 
-time_end = 5*leng/vel
+time_end = 0.1*leng/vel
 cfl = 0.1
 
-dt = cfl * dx/c_l 
-Nt = int(time_end/dt)
+dt = cfl * dx/c_l
+Nt = 100 # int(time_end/dt)
 
 # Configuring case dictionary
 print(json.dumps({
     # Logistics ================================================================
     'run_time_info'                : 'T',
+    'rdma_mpi'                    : 'T',
     # ==========================================================================
 
     # Computational Domain Parameters ==========================================
@@ -37,7 +38,7 @@ print(json.dumps({
     'dt'                           : dt,
     't_step_start'                 : 0,
     't_step_stop'                  : Nt,
-    't_step_save'                  : int(Nt/20.),
+    't_step_save'                  : int(Nt/2),
     # ==========================================================================
 
     # Simulation Algorithm Parameters ==========================================
@@ -50,7 +51,7 @@ print(json.dumps({
     'time_stepper'                 : 3,
     'weno_order'                   : 5,
     'weno_eps'                     : 1.E-16,
-    'weno_Re_flux'                 : 'F',  
+    'weno_Re_flux'                 : 'F',
     'weno_avg'                     : 'F',
     'mapped_weno'                  : 'T',
     'null_weights'                 : 'F',
@@ -70,7 +71,7 @@ print(json.dumps({
     'prim_vars_wrt'                :'T',
     'parallel_io'                  :'T',
     # ==========================================================================
-                                                                
+
     # Patch 1: Background ======================================================
     'patch_icpp(1)%geometry'       : 3,
     'patch_icpp(1)%x_centroid'     : 0.,

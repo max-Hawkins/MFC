@@ -578,7 +578,7 @@ Details of the transducer acoustic source model can be found in [Maeda and Colon
 
 - `%%dipole` changes the default monopole (one-sided) source to a dipole source. It is only available for planar waves.
 
-- `%%loc(j)` specifies the location of the acoustic source in the $j$-th coordinate direction. For planer support, the location defines midpoint of the source plane. For transducer arrays, the location defines the center of the transducer or transducer array (not the focal point; for 3D it's the tip of the spherical cap, for 2D it's the tip of the arc). 
+- `%%loc(j)` specifies the location of the acoustic source in the $j$-th coordinate direction. For planer support, the location defines midpoint of the source plane. For transducer arrays, the location defines the center of the transducer or transducer array (not the focal point; for 3D it's the tip of the spherical cap, for 2D it's the tip of the arc).
 
 - `%%pulse` specifies the acoustic wave form. `%%pulse = 1`, `2`, and `3` correspond to sinusoidal wave, Gaussian wave, and square wave, respectively.
 
@@ -602,13 +602,13 @@ Details of the transducer acoustic source model can be found in [Maeda and Colon
 
 - `%%aperture` specifies the aperture of the transducer. It is the diameter of the projection of the transducer arc onto the y-axis (2D) or spherical cap onto the y-z plane (3D). Set the aperture to double the focal length to simulate a transducer enclosing half of the circle/sphere. For the transducer array, it is the total aperture of the array.
 
-- `%%num_elements` specifies the number of transducer elements in a transducer array. 
+- `%%num_elements` specifies the number of transducer elements in a transducer array.
 
 - `%%element_on` specifies the element number of the transducer array that is on. The element number starts from 1, if all elements are on, set `%%element_on` to 0.
 
 - `%%element_spacing_angle` specifies the spacing angle between adjacent transducers in radians. The total aperture (`%%aperture`) is set, so each transducer element is smaller if `%%element_spacing_angle` is larger.
 
-- `%%element_polygon_ratio` specifies the ratio of the polygon side length to the aperture diameter of each transducer element in a circular 3D transducer array. The polygon side length is calculated by using the total aperture (`%%aperture`) as the circumcircle diameter and `%%num_elements` as the number of sides of the polygon. The ratio is used to specify the aperture size of each transducer element in the array as a ratio of the total aperture. 
+- `%%element_polygon_ratio` specifies the ratio of the polygon side length to the aperture diameter of each transducer element in a circular 3D transducer array. The polygon side length is calculated by using the total aperture (`%%aperture`) as the circumcicle diameter, and `%%num_elements` as the number of sides of the polygon. The ratio is used specify the aperture size of each transducer element in the array, as a ratio of the total aperture.
 
 - `%%rotate_angle` specifies the rotation angle of the 3D circular transducer array along the x-axis (principal axis). It is optional and defaults to 0.
 
@@ -842,14 +842,14 @@ Each patch requires a different set of parameters, which are also listed in this
 
 ### Immersed Boundary Patch Types
 
-| #    | Name               | Dim.   | 
-| ---: | :----:             | :---   | 
-| 2    | 2D Circle          | 2      | 
-| 3    | 2D Rectangle       | 2      |   
-| 4    | 2D Airfoil         | 2      |      
-| 8    | 3D Sphere          | 3      |      
-| 10   | 3D Cylinder        | 3      |      
-| 11   | 3D Airfoil         | 3      |      
+| #    | Name               | Dim.   |
+| ---: | :----:             | :---   |
+| 2    | 2D Circle          | 2      |
+| 3    | 2D Rectangle       | 2      |
+| 4    | 2D Airfoil         | 2      |
+| 8    | 3D Sphere          | 3      |
+| 10   | 3D Cylinder        | 3      |
+| 11   | 3D Airfoil         | 3      |
 
 ### Acoustic Supports {#acoustic-supports}
 
