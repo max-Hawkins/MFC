@@ -809,7 +809,6 @@ contains
 
         call nvtxStartRange("RHS-MPI+BufPack")
         call s_populate_variables_buffers(q_prim_qp%vf, pb, mv)
-
         call nvtxEndRange
 
         if (cfl_dt) then

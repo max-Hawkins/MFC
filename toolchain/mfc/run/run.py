@@ -109,6 +109,7 @@ def __generate_job_script(targets, case: input.MFCInputFile):
         qsystem=queues.get_system(),
         profiler=shlex.join(__profiler_prepend())
     )
+    print("Targets: %s", targets)
 
     file_write(__job_script_filepath(), content)
 

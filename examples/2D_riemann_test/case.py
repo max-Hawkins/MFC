@@ -6,7 +6,9 @@ import math
 # Configuring case dictionary
 print(json.dumps({
     # Logistics ================================================
-    'run_time_info'                : 'T',
+    'run_time_info'               : 'T',
+    'rdma_mpi'                    : 'F',
+    'zfp_halo'                    : 'F',
     # ==========================================================
 
     # Computational Domain Parameters ==========================
@@ -52,7 +54,7 @@ print(json.dumps({
     'prim_vars_wrt'                :'T',
     'parallel_io'                  :'T',
     # ==========================================================
-                                                            
+
     # Patch 1: Base ============================================
     'patch_icpp(1)%geometry'       : 3,
     'patch_icpp(1)%x_centroid'     : 0.4,

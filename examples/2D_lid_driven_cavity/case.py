@@ -6,6 +6,8 @@ eps = 1e-6
 print(json.dumps({
     # Logistics ================================================
     'run_time_info'                : 'T',
+    'rdma_mpi'                    : 'F',
+    'zfp_halo'                    : 'T',
     # ==========================================================
 
     # Computational Domain Parameters ==========================
@@ -18,8 +20,8 @@ print(json.dumps({
     'p'                            : 0,
     'dt'                           : 1.25E-04,
     't_step_start'                 : 0,
-    't_step_stop'                  : 1600000,
-    't_step_save'                  : 8000,
+    't_step_stop'                  : 50,
+    't_step_save'                  : 50,
     # ==========================================================
 
     # Simulation Algorithm Parameters ==========================
@@ -54,7 +56,7 @@ print(json.dumps({
     'fd_order'                     : 4,
     'parallel_io'                  :'T',
     # ==========================================================
-                                                            
+
     # Patch 1: Base ============================================
     'patch_icpp(1)%geometry'       : 3,
     'patch_icpp(1)%x_centroid'     : 0.5,

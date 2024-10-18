@@ -878,8 +878,12 @@ contains
         integer :: compress_1_send_offset, compress_1_recv_offset
         byte, pointer :: fp_1_byte_buff_send
         byte, pointer :: fp_1_byte_buff_recv
+        byte, pointer :: fp_1_byte_doubles_send
+
+
 #ifdef MFC_MPI
 
+        call nvtxStartRange("RHS-COMM-PACKBUF")
         !$acc update device(v_size)
 
         if (qbmm .and. .not. polytropic) then
@@ -1072,6 +1076,8 @@ contains
                 #:endif
             end if
         #:endfor
+        call nvtxEndRange ! RHS-COMM-PACKBUF
+
 
         ! Send/Recv
         #:for rdma_mpi, zfp_halo in [(True, True), (False, True), (True, False), (False, False)]
@@ -1080,31 +1086,194 @@ contains
 
                 p_send => q_cons_buff_send(0)
                 p_recv => q_cons_buff_recv(0)
-                #:if rdma_mpi
-                    !$acc data attach(p_send, p_recv)
-                    !$acc host_data use_device(p_send, p_recv)
-                #:else
+
+                #:if zfp_halo
+                    ! Initialize ZFP TODO: Do this once at start of program
+                    call nvtxStartRange("ZFP")
+                    #define ZFP_RATE 64.0
+
+                    ! Initialize ZFP compression struct
+                    call nvtxStartRange("ZFP-Init")
+                    compress_1_state_send = f_compress_init(c_loc(p_send), & ! Pointer to data to compress
+                                                            buffer_count, & ! # of doubles
+                                                            ZFP_RATE, & ! Fixed Rate precision
+                                                            1, & ! From device (1=GPU)
+                                                            1); ! To device (1=GPU)
+
+                    compress_1_state_recv = f_compress_init(c_loc(p_recv), & ! Pointer to data to compress
+                                                            buffer_count, & ! # of doubles
+                                                            ZFP_RATE, & ! Fixed Rate precision
+                                                            1, & ! From device (1=GPU)
+                                                            1); ! To device (1=GPU)
+                    ! Associate Fortran and C pointers for compressed byte streams
+                    ! TODO: option 1 from Mat Colgrove - What I'm missing is getting the mirrored copy's device pointer set
+                    call c_f_pointer(compress_1_state_send%pBytesHost, fp_1_byte_buff_send)
+                    call c_f_pointer(compress_1_state_recv%pBytesHost, fp_1_byte_buff_recv)
+                    ! TODO:: From Mat Colgrove
+                    ! Uses unstructred data region vs structured (acc data attach)
+                    ! attach sets the device pointer to the current host pointer's map?
+                    ! enter data is persistent unlike the structure
+                    !$acc enter data attach(fp_1_byte_buff_send)
+                    !$acc enter data attach(fp_1_byte_buff_recv)
+
+                    ! Associated exit data can be wherever (across subroutines and such)
+                    ! End Option 1
+
+
+                    ! TODO: Option 2
+                    ! Create the buffers in Fortran using enter data region
+                    !  and then pass the device
+                    ! pointer to the
+                    ! Use c_devloc(f_ptr) and c_loc(ptr)
+                    ! End Option 2
+
+                    ! Option 3
+                    ! Mat wouldn't do what we did with the Fortran/C interface
+                    ! Would pass in the dummy state as an argument by reference
+                    ! To allocate the data
+                    ! The current way does an extra copy?
+                    ! f_compress_init(compress_1_state_send,c_loc(p_send), & ! Pointer to data to compress
+                    !                                         buffer_count, & ! # of doubles
+                    !                                         ZFP_RATE, & ! Fixed Rate precision
+                    !                                         1, & ! From device (1=GPU)
+                    !                                         1); ! To device (1=GPU)
+
+                    ! Allocate fortran array, use data enter ...
+
+                    ! End option 3
+
+                    call nvtxEndRange ! ZFP-Init
+                #:endif
+
+                #:if rdma_mpi and (not zfp_halo)
+                    print *, "Using RDMA_MPI"
+                    ! Attach the send/receive buffers to our target and
+                    ! allow the send and receive buffers to be used from host
+                    ! #:if zfp_halo
+                    !     print *, "Using ZFP Halo!"
+                    !    ! !$acc deviceptr(fp_1_byte_buff_send, fp_1_byte_buff_recv)
+                    !    ! ! $acc data attach(p_send, p_recv, fp_1_byte_buff_send, fp_1_byte_buff_recv)
+                    !    ! ! $acc host_data use_device(p_send, p_recv,fp_1_byte_buff_send, fp_1_byte_buff_recv)
+                    ! #:else
+                        print *, "Not using ZFP Halo!"
+                        !$acc data attach(p_send, p_recv)
+                        !$acc host_data use_device(p_send, p_recv)
+                    ! #:endif
+                    call nvtxStartRange("RHS-COMM-MPISENDRECV-RDMA")
+                #:endif
+
+
+                #:if (not rdma_mpi) and (not zfp_halo)
+                    print *, "Not using rmda_mpi or ZFP Halo!"
+
+                    ! If not using GPUDirect RDMA, manually copy device data to host
+                    call nvtxStartRange("RHS-COMM-DEV2HOST")
                     !$acc update host(q_cons_buff_send, ib_buff_send)
+                    call nvtxEndRange
+
+                    call nvtxStartRange("RHS-COMM-MPISENDRECV-NO-RDMA")
                 #:endif
 
-                call nvtxStartRange("RHS-MPI-SENDRECV")
-                call MPI_SENDRECV( &
-                    p_send, buffer_count, MPI_DOUBLE_PRECISION, dst_proc, send_tag, &
-                    p_recv, buffer_count, MPI_DOUBLE_PRECISION, src_proc, recv_tag, &
-                    MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
-                call nvtxEndRange
 
-                #:if rdma_mpi
-                    !$acc end host_data
-                    !$acc end data
-                    !$acc wait
+                #:if zfp_halo
+                    print *, "Raw buffer size: ", buffer_count * 8, " bytes" !double
+
+                    call c_f_pointer(compress_1_state_send%pDoubles, fp_1_byte_doubles_send)
+                    !!$acc deviceptr(fp_1_byte_doubles_send)
+                    ! print *, "compress_1_state_send.pDoubles:"
+                    ! do i = 1, 10
+                    !     print *, fp_1_byte_doubles_send
+                    ! end do
+
+                    print *, "p_send:"
+                    print *, p_send
+                    ! do i = 1, 10
+                    !     print *, p_send
+                    ! end do
+
+                    ! Compress buffer
+                    call nvtxStartRange("ZFP-Compress")
+                    ! Given buffer: p_send, buffer_count, MPI_DOUBLE_PRECISION
+                    compress_1_send_offset = f_compress(compress_1_state_send);
+                    print *, "Compressed send size: ", compress_1_send_offset, " bytes"
+                    call nvtxEndRange ! ZFP-Compress
+                #:endif
+
+
+                ! If not using RDMA_MPI, move compressed buffer to host for MPI_Sendrecv
+                #:if (not rdma_mpi) and zfp_halo
+                    print *, "Not Using rdma mpi but using ZFP Halo!"
+
+                    ! Compress data on GPU before transferring to CPU
+                    ! If not using GPUDirect RDMA, manually copy device data to host
+                    call nvtxStartRange("RHS-COMM-DEV2HOST")
+                    ! TODO: Make this an actual array so that I can update it properly
+                    !$acc update host(fp_1_byte_buff_send)
+                    call nvtxEndRange
+
+                    call nvtxStartRange("RHS-COMM-MPISENDRECV-NO-RDMA")
+                #:endif
+
+
+                #:if zfp_halo
+                    ! Exchange compressed halo regions
+                    call MPI_SENDRECV( &
+                        fp_1_byte_buff_send, compress_1_send_offset,       MPI_CHAR, dst_proc, send_tag, &
+                        fp_1_byte_buff_recv, int(compress_1_state_recv%nbytes), MPI_CHAR, src_proc, recv_tag, &
+                        MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
                 #:else
-                    !$acc update device(q_cons_buff_recv)
+                    call MPI_SENDRECV( &
+                        p_send, buffer_count, MPI_DOUBLE_PRECISION, dst_proc, send_tag, &
+                        p_recv, buffer_count, MPI_DOUBLE_PRECISION, src_proc, recv_tag, &
+                        MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
                 #:endif
+                call nvtxEndRange ! RHS-COMM-MPISENDRECV-(NO)-RDMA
+
+
+                ! Get received buffer size (depends on compression from other rank)
+                ! MPI_GET_COUNT(STATUS, DATATYPE, COUNT, IERROR)
+                ! INTEGER    STATUS(MPI_STATUS_SIZE), DATATYPE, COUNT, IERROR
+
+                ! If not using rdma_mpi and using ZFP compression, transfer
+                ! compressed bitstream back to GPU for decompression
+                #:if (not rdma_mpi) and zfp_halo
+                    call nvtxStartRange("RHS-COMM-HOST2DEV")
+                    ! TODO: Make actual buffer
+                    !$acc update device(fp_1_byte_buff_recv)
+                    call nvtxEndRange
+                #:endif
+
+
+                #:if zfp_halo
+                    ! Decompress buffer
+                    call nvtxStartRange("ZFP-Decompress")
+                    ! Returned value is the number of bytes in the compressed bitstream
+                    compress_1_recv_offset = f_decompress(compress_1_state_recv);
+                    print *, "Decompressed recv size: ", compress_1_recv_offset, " bytes"
+
+                    call nvtxEndRange ! ZFP-Decompress
+                #:endif
+
+                #:if rdma_mpi and (not zfp_halo)
+                   !$acc end host_data
+                   !$acc end data
+                   !$acc wait
+                #:endif
+                ! TODO: Properly handle CPU/GPU ZFP compression execution options
+                #:if not rdma_mpi and not zfp_halo
+                    call nvtxStartRange("RHS-COMM-HOST2DEV")
+                    !$acc update device(q_cons_buff_recv)
+                    call nvtxEndRange
+                #:endif
+
+                ! TODO: Cleanup ZFP compression structures but do it once per sim (AKA not here)
             end if
+        ! #:endfor
+        ! end if
         #:endfor
 
         ! Unpack Received Buffer
+        call nvtxStartRange("RHS-COMM-UNPACKBUF")
         #:for mpi_dir in [1, 2, 3]
             if (mpi_dir == ${mpi_dir}$) then
                 #:if mpi_dir == 1
@@ -1273,6 +1442,7 @@ contains
                 #:endif
             end if
         #:endfor
+        call nvtxEndRange ! RHS-COMM-UNPACKBUF
 
 #endif
 
