@@ -2,13 +2,20 @@
 !! @file m_compress.f90
 !! @brief Contains the Fortran bindings for compression.
 !! @author H. Le Berre
-
+#:include 'macros.fpp'
 
 module m_compress
 
-    use, intrinsic :: iso_c_binding, only: c_ptr, c_null_ptr, c_size_t, c_loc, c_int, c_double
+    use openacc
+    use, intrinsic :: iso_c_binding, only: c_ptr, c_null_ptr, c_size_t, c_loc, c_int, c_double, c_intptr_t, c_devptr
 
     implicit none
+
+    ! real(kind(0d0)), private, allocatable, dimension(:), target :: zfp_compressed_buffer_send
+    ! real(kind(0d0)), private, allocatable, dimension(:), target :: zfp_compressed_buffer_recv
+
+    !!$acc declare create(zfp_compressed_buffer_send, zfp_compressed_buffer_recv)
+
 
     type, bind(c) :: t_compress_state
         logical :: bActive = .false.
@@ -25,21 +32,48 @@ module m_compress
         integer(c_size_t) :: nBytes = 0
 
         type(c_ptr) :: pInternal = c_null_ptr
+        ! real(kind(0d0)), pointer :: p_zfp_compressed_buffer
+        ! real(kind(0d0)), allocatable, dimension(:) :: zfp_compressed_buffer
+        !! $acc declare link(zfp_compressed_buffer)
     end type t_compress_state
 
     interface
 
-        function c_compress_init(pBytes, nBytes, rate, from, to) result(state) bind(c, name='c_compress_init')
+        function c_compress_init_pre_alloc(pDoubles, nDoubles, rate, from, to) result(state) bind(c, name='c_compress_init_pre_alloc')
             import
 
-            type(c_ptr),       value :: pBytes
-            integer(c_size_t), value :: nBytes
+            type(c_ptr),       value :: pDoubles
+            integer(c_size_t), value :: nDoubles
+            real(c_double),    value :: rate
+            integer(c_int),    value :: from
+            integer(c_int),    value :: to
+
+            type(t_compress_state) :: state
+        end function c_compress_init_pre_alloc
+
+        function c_compress_init(pBytesHost, pBytesDev, pDoubles, nDoubles, rate, from, to) result(state) bind(c, name='c_compress_init')
+            import
+
+            type(c_ptr),       value :: pBytesHost
+            type(c_devptr),       value :: pBytesDev
+            ! integer(c_intptr_t), value :: pBytesDev
+
+            type(c_ptr),       value :: pDoubles
+            integer(c_size_t), value :: nDoubles
             real(c_double),    value :: rate
             integer(c_int),    value :: from
             integer(c_int),    value :: to
 
             type(t_compress_state) :: state
         end function c_compress_init
+
+        subroutine c_compress_init_post_alloc(pState, pBytesHost) bind(c, name='c_compress_init_post_alloc')
+            import
+
+            type(c_ptr),       value :: pState
+            type(c_ptr),       value :: pBytesHost
+            ! type(c_ptr),       value :: pBytesDev
+        end subroutine c_compress_init_post_alloc
 
         function c_compress(pState) result(offset) bind(c, name='c_compress')
             import
@@ -75,18 +109,52 @@ module m_compress
 
     contains
 
-        function f_compress_init(pDoubles, nDoubles, rate, from, to) result(state)
+    function f_compress_init_get_size(pDoubles, nDoubles, rate, from, to) result(nBytes)
+        !real*8, intent(in)  :: doubles(*)
+        type(c_ptr), intent(in) :: pDoubles
+        integer,     intent(in) :: nDoubles
+        real,        intent(in) :: rate
+        integer,     intent(in) :: from
+        integer,     intent(in) :: to
+
+        integer,     target, intent(out)  :: nBytes
+
+        type(t_compress_state) :: state
+
+        state = c_compress_init_pre_alloc(pDoubles, int(nDoubles, c_size_t), real(rate, c_double), int(from, c_int), int(to, c_int))
+
+        nBytes = int(state%nBytes)
+    end function f_compress_init_get_size
+
+        function f_compress_init(pBytesHost, pBytesDev, pDoubles, nDoubles, rate, from, to) result(state)
             !real*8, intent(in)  :: doubles(*)
+            ! type(c_ptr), intent(in) :: pBytesHost
+            ! type(c_ptr), intent(in) :: pBytesDev
+            type(c_ptr), value :: pBytesHost
+            type(c_devptr), value :: pBytesDev
+            ! integer(c_intptr_t), value :: pBytesDev
             type(c_ptr), intent(in) :: pDoubles
             integer,     intent(in) :: nDoubles
             real,        intent(in) :: rate
             integer,     intent(in) :: from
             integer,     intent(in) :: to
 
-            type(t_compress_state) :: state
+            type(t_compress_state), target, intent(out) :: state
 
-            state = c_compress_init(pDoubles, int(nDoubles, c_size_t), real(rate, c_double), int(from, c_int), int(to, c_int))
+            state = c_compress_init(pBytesHost, pBytesDev, pDoubles, int(nDoubles, c_size_t), real(rate, c_double), int(from, c_int), int(to, c_int))
+
+            ! ! Allocate memory from fortran to play nicely with OpenACC
+            ! ALLOCATE(state%zfp_compressed_buffer(int(state%nBytes) / sizeof(0d0)))
+            ! !$acc enter data create(state%zfp_compressed_buffer)
+            ! state%p_zfp_compressed_buffer => state%zfp_compressed_buffer(0)
+            ! ! state%zfp_compressed_buffer = zfp_compressed_buffer
+
+            ! ! Finish initialization of ZFP
+            ! ! !$acc host_data device(state%zfp_compressed_buffer)
+            ! call c_compress_init_post_alloc(c_loc(state), c_loc(state%zfp_compressed_buffer))
         end function f_compress_init
+
+
 
         function f_compress(state) result(offset)
             type(t_compress_state), target, intent(in) :: state
