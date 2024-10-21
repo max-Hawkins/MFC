@@ -68,7 +68,7 @@ typedef struct {
 } c_compress_state_t;
 
 
-c_compress_state_t c_compress_init(
+c_compress_state_t c_compress_init_pre_alloc(
     const C_TYPE*          pDoubles, /* Buffer of doubles to compress from & decompress to. */
     const size_t           nDoubles, /* Number of doubles to compress from & decompress to. */
     const double           rate,     /* ZFP (de)compression rate. */
@@ -110,21 +110,124 @@ c_compress_state_t c_compress_init(
 
     state.pInternal->field = zfp_field_1d(pDoubles, ZFP_TYPE, nDoubles);
     state.nBytes = zfp_stream_maximum_size(state.pInternal->stream, state.pInternal->field);
+    printf("State nBytes from C: %d", state.nBytes);
+
+//     // Set pBytes
+//     state.pBytesHost = (uint8_t*)malloc(state.nBytes);
+//     state.pBytes = state.pBytesHost;
+// #ifdef MFC_CUDA
+//     if (to == c_compress_loc_device) {
+//         const cudaError_t cu_err = cudaMalloc((void**)&state.pBytesDev, state.nBytes);
+
+//         if (cu_err != cudaSuccess) {
+//             zfp_field_free(state.pInternal->field);
+//             printf("[c_compress_init] Error: cudaMalloc returned %d.", (int)cu_err);
+//             return state;
+//         }
+//         state.pBytes = state.pBytesDev;
+//         // acc_map_data(state.pBytesHost, state.pBytesDev, state.nBytes);
+//         // state.pBytes = acc_malloc(state.nBytes);
+//         // if(!state.pBytes){
+//         //     printf("[c_compress_init] Error: acc_malloc failed.");
+//         // }
+//     } else {
+// #endif
+
+// #ifdef MFC_CUDA
+//     }
+// #endif
+
+//     state.pInternal->bits = stream_open(state.pBytes, state.nBytes);
+
+//     zfp_stream_set_bit_stream(state.pInternal->stream, state.pInternal->bits);
+
+//     state.bActive = true;
+
+    return state;
+}
+
+void c_compress_init_post_alloc(
+    c_compress_state_t* const pState, // ZFP state to finish initializing
+    const C_TYPE*          pBytesHost
+    // const C_TYPE*          pBytesDev
+) {
+    pState->pBytesHost = pBytesHost;
+    pState->pBytes     = pBytesHost;
+    pState->pBytesDev  = NULL;
+
+    #ifdef MFC_CUDA
+        pState->pBytesDev = pBytesHost; //acc_deviceptr(pBytesHost);
+        pState->pBytes    = pBytesHost; //acc_deviceptr(pBytesHost);
+        // printf("Setting ZFP buffer to CUDA device ptr: %s", pState->pBytes);
+    #endif
+
+    pState->pInternal->bits = stream_open(pState->pBytes, pState->nBytes);
+
+    zfp_stream_set_bit_stream(pState->pInternal->stream, pState->pInternal->bits);
+
+    pState->bActive = true;
+};
+
+c_compress_state_t c_compress_init(
+    const C_TYPE*          pBytesHost, /* Buffer of doubles to compress from & decompress to. */
+    const C_TYPE*          pBytesDev, /* Buffer of doubles to compress from & decompress to. */
+    const C_TYPE*          pDoubles, /* Buffer of doubles to compress from & decompress to. */
+    const size_t           nDoubles, /* Number of doubles to compress from & decompress to. */
+    const double           rate,     /* ZFP (de)compression rate. */
+    const c_compress_loc_t from,     /* Location of the uncompressed buffer. */
+    const c_compress_loc_t to        /* Location of the   compressed buffer. */
+) {
+    c_compress_state_t state;
+
+    state.bActive = false;
+
+    state.pDoubles = pDoubles;
+    state.nDoubles = nDoubles;
+    state.from     = from;
+    state.to       = to;
+
+    state.pBytes = NULL;
+    state.pBytesDev = NULL;
+    state.pBytesHost = NULL;
+    state.nBytes = 0;
+
+    state.pInternal = (c_compress_internal_t*)malloc(sizeof(c_compress_internal_t));
+    state.pInternal->stream = zfp_stream_open(NULL);
+
+#ifdef MFC_CUDA
+
+    if (!zfp_stream_set_execution(state.pInternal->stream, zfp_exec_cuda)) {
+        printf("[c_compress_init] Error: zfp_exec_cuda not available.");
+        return state;
+    }
+
+    printf("[c_compress_init] Cuda is enabled.\n");
+
+#endif // MFC_CUDA
+
+    // ZFP currently only fully-supports fixed-rate compression on CUDA
+    state.rate = zfp_stream_set_rate(state.pInternal->stream, rate, ZFP_TYPE, 1, false);
+
+    printf("[zfp] Rate is %f (requested %f).\n", state.rate, rate);
+
+    state.pInternal->field = zfp_field_1d(pDoubles, ZFP_TYPE, nDoubles);
+    state.nBytes = zfp_stream_maximum_size(state.pInternal->stream, state.pInternal->field);
+    printf("State nBytes from C: %d", state.nBytes);
 
     // Set pBytes
-    state.pBytesHost = (uint8_t*)malloc(state.nBytes);
+    state.pBytesHost = pBytesHost; //(uint8_t*)malloc(state.nBytes);
     state.pBytes = state.pBytesHost;
 #ifdef MFC_CUDA
     if (to == c_compress_loc_device) {
-        const cudaError_t cu_err = cudaMalloc((void**)&state.pBytesDev, state.nBytes);
-
-        if (cu_err != cudaSuccess) {
-            zfp_field_free(state.pInternal->field);
-            printf("[c_compress_init] Error: cudaMalloc returned %d.", (int)cu_err);
-            return state;
-        }
+        // const cudaError_t cu_err = cudaMalloc((void**)&state.pBytesDev, state.nBytes);
+        state.pBytesDev = pBytesDev;
+        // if (cu_err != cudaSuccess) {
+        //     zfp_field_free(state.pInternal->field);
+        //     printf("[c_compress_init] Error: cudaMalloc returned %d.", (int)cu_err);
+        //     return state;
+        // }
         state.pBytes = state.pBytesDev;
-        acc_map_data(state.pBytesHost, state.pBytesDev, state.nBytes);
+        // acc_map_data(state.pBytesHost, state.pBytesDev, state.nBytes);
         // state.pBytes = acc_malloc(state.nBytes);
         // if(!state.pBytes){
         //     printf("[c_compress_init] Error: acc_malloc failed.");
@@ -145,9 +248,9 @@ c_compress_state_t c_compress_init(
     return state;
 }
 
-
 size_t c_compress(c_compress_state_t* const pState) {
     zfp_stream_rewind(pState->pInternal->stream);
+    // printf("ZFP Compressing data: %d", (double*)(pState->pInternal->field->data));
     const size_t offset = zfp_compress(pState->pInternal->stream, pState->pInternal->field);
 
     return offset;
@@ -190,72 +293,72 @@ void c_compress_finalize(c_compress_state_t* const pState) {
 
 
 void c_bench() {
-    C_TYPE* buffer        = (C_TYPE*)malloc(sizeof(C_TYPE)*BENCH_N);
-    C_TYPE* buffer_origin = (C_TYPE*)malloc(sizeof(C_TYPE)*BENCH_N);
+    // C_TYPE* buffer        = (C_TYPE*)malloc(sizeof(C_TYPE)*BENCH_N);
+    // C_TYPE* buffer_origin = (C_TYPE*)malloc(sizeof(C_TYPE)*BENCH_N);
 
-    srand(1);
-    for (int i = 0; i < BENCH_N; ++i) {
-        buffer[i] = (2 * (rand()/(C_TYPE)RAND_MAX)) - 1;
-    }
-    printf("\n");
+    // srand(1);
+    // for (int i = 0; i < BENCH_N; ++i) {
+    //     buffer[i] = (2 * (rand()/(C_TYPE)RAND_MAX)) - 1;
+    // }
+    // printf("\n");
 
-    memcpy(buffer_origin, buffer, BENCH_N*sizeof(C_TYPE));
+    // memcpy(buffer_origin, buffer, BENCH_N*sizeof(C_TYPE));
 
-    c_compress_state_t zfp = c_compress_init(buffer, BENCH_N, ZFP_BENCH_RATE, 0, 0);
+    // c_compress_state_t zfp = c_compress_init(buffer, BENCH_N, ZFP_BENCH_RATE, 0, 0);
 
-    printf("c_compress:   %d\n", (int)c_compress(&zfp));
-    memset(buffer, 0, BENCH_N*sizeof(C_TYPE));
-    printf("c_decompress: %d\n", (int)c_decompress(&zfp));
+    // printf("c_compress:   %d\n", (int)c_compress(&zfp));
+    // memset(buffer, 0, BENCH_N*sizeof(C_TYPE));
+    // printf("c_decompress: %d\n", (int)c_decompress(&zfp));
 
 
-    C_TYPE avg_abs = 0; C_TYPE min_abs = -1; C_TYPE max_abs = 0;
-    C_TYPE avg_rel = 0; C_TYPE min_rel = -1; C_TYPE max_rel = 0;
+    // C_TYPE avg_abs = 0; C_TYPE min_abs = -1; C_TYPE max_abs = 0;
+    // C_TYPE avg_rel = 0; C_TYPE min_rel = -1; C_TYPE max_rel = 0;
 
-    for (int i = 0; i < BENCH_N; ++i) {
-        C_TYPE abs = buffer_origin[i] - buffer[i];
-        C_TYPE rel = 0;
+    // for (int i = 0; i < BENCH_N; ++i) {
+    //     C_TYPE abs = buffer_origin[i] - buffer[i];
+    //     C_TYPE rel = 0;
 
-        if (buffer_origin[i] != buffer[i]) {
-            // assumes buffer_origin[i] != 0
-            rel = abs / buffer_origin[i];
-        }
+    //     if (buffer_origin[i] != buffer[i]) {
+    //         // assumes buffer_origin[i] != 0
+    //         rel = abs / buffer_origin[i];
+    //     }
 
-        if (rel < 0) { rel = -rel; }
-        if (abs < 0) { abs = -abs; }
+    //     if (rel < 0) { rel = -rel; }
+    //     if (abs < 0) { abs = -abs; }
 
-        avg_abs += abs;
-        avg_rel += rel;
+    //     avg_abs += abs;
+    //     avg_rel += rel;
 
-        if (rel > max_rel) {
-            max_rel = rel;
-        }
+    //     if (rel > max_rel) {
+    //         max_rel = rel;
+    //     }
 
-        if (abs > max_abs) {
-            max_abs = abs;
-        }
+    //     if (abs > max_abs) {
+    //         max_abs = abs;
+    //     }
 
-        if (abs < min_abs || min_abs < 0) {
-            min_abs = abs;
-        }
+    //     if (abs < min_abs || min_abs < 0) {
+    //         min_abs = abs;
+    //     }
 
-        if (rel < min_rel || min_rel < 0) {
-            min_rel = rel;
-        }
-    }
+    //     if (rel < min_rel || min_rel < 0) {
+    //         min_rel = rel;
+    //     }
+    // }
 
-    for (int i = 0; i < BENCH_N; ++i) {
-        //printf("%.15f -> %.15f\n", buffer_origin[i], buffer[i]);
-    }
+    // for (int i = 0; i < BENCH_N; ++i) {
+    //     //printf("%.15f -> %.15f\n", buffer_origin[i], buffer[i]);
+    // }
 
-    printf("Absolute Error:\n");
-    printf("  - Average: %.15e\n", avg_abs / BENCH_N);
-    printf("  - Minimum: %.15e\n", min_abs);
-    printf("  - Maximum: %.15e\n", max_abs);
+    // printf("Absolute Error:\n");
+    // printf("  - Average: %.15e\n", avg_abs / BENCH_N);
+    // printf("  - Minimum: %.15e\n", min_abs);
+    // printf("  - Maximum: %.15e\n", max_abs);
 
-    printf("Relative Error:\n");
-    printf("  - Average: %.15e\n", avg_rel / BENCH_N);
-    printf("  - Minimum: %.15e\n", min_rel);
-    printf("  - Maximum: %.15e\n", max_rel);
+    // printf("Relative Error:\n");
+    // printf("  - Average: %.15e\n", avg_rel / BENCH_N);
+    // printf("  - Minimum: %.15e\n", min_rel);
+    // printf("  - Maximum: %.15e\n", max_rel);
 
-    c_compress_finalize(&zfp);
+    // c_compress_finalize(&zfp);
 }
