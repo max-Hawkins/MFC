@@ -99,49 +99,18 @@ c_compress_state_t c_compress_init_pre_alloc(
         return state;
     }
 
-    printf("[c_compress_init] Cuda is enabled.\n");
+    // printf("[c_compress_init] Cuda is enabled.\n");
 
 #endif // MFC_CUDA
 
     // ZFP currently only fully-supports fixed-rate compression on CUDA
     state.rate = zfp_stream_set_rate(state.pInternal->stream, rate, ZFP_TYPE, 1, false);
 
-    printf("[zfp] Rate is %f (requested %f).\n", state.rate, rate);
+    // printf("[zfp] Rate is %f (requested %f).\n", state.rate, rate);
 
     state.pInternal->field = zfp_field_1d(pDoubles, ZFP_TYPE, nDoubles);
     state.nBytes = zfp_stream_maximum_size(state.pInternal->stream, state.pInternal->field);
-    printf("State nBytes from C: %d", state.nBytes);
-
-//     // Set pBytes
-//     state.pBytesHost = (uint8_t*)malloc(state.nBytes);
-//     state.pBytes = state.pBytesHost;
-// #ifdef MFC_CUDA
-//     if (to == c_compress_loc_device) {
-//         const cudaError_t cu_err = cudaMalloc((void**)&state.pBytesDev, state.nBytes);
-
-//         if (cu_err != cudaSuccess) {
-//             zfp_field_free(state.pInternal->field);
-//             printf("[c_compress_init] Error: cudaMalloc returned %d.", (int)cu_err);
-//             return state;
-//         }
-//         state.pBytes = state.pBytesDev;
-//         // acc_map_data(state.pBytesHost, state.pBytesDev, state.nBytes);
-//         // state.pBytes = acc_malloc(state.nBytes);
-//         // if(!state.pBytes){
-//         //     printf("[c_compress_init] Error: acc_malloc failed.");
-//         // }
-//     } else {
-// #endif
-
-// #ifdef MFC_CUDA
-//     }
-// #endif
-
-//     state.pInternal->bits = stream_open(state.pBytes, state.nBytes);
-
-//     zfp_stream_set_bit_stream(state.pInternal->stream, state.pInternal->bits);
-
-//     state.bActive = true;
+    // printf("State nBytes from C: %d", state.nBytes);
 
     return state;
 }
@@ -149,7 +118,6 @@ c_compress_state_t c_compress_init_pre_alloc(
 void c_compress_init_post_alloc(
     c_compress_state_t* const pState, // ZFP state to finish initializing
     const C_TYPE*          pBytesHost
-    // const C_TYPE*          pBytesDev
 ) {
     pState->pBytesHost = pBytesHost;
     pState->pBytes     = pBytesHost;
@@ -201,37 +169,26 @@ c_compress_state_t c_compress_init(
         return state;
     }
 
-    printf("[c_compress_init] Cuda is enabled.\n");
+    // printf("[c_compress_init] Cuda is enabled.\n");
 
 #endif // MFC_CUDA
 
     // ZFP currently only fully-supports fixed-rate compression on CUDA
     state.rate = zfp_stream_set_rate(state.pInternal->stream, rate, ZFP_TYPE, 1, false);
 
-    printf("[zfp] Rate is %f (requested %f).\n", state.rate, rate);
+    // printf("[zfp] Rate is %f (requested %f).\n", state.rate, rate);
 
     state.pInternal->field = zfp_field_1d(pDoubles, ZFP_TYPE, nDoubles);
     state.nBytes = zfp_stream_maximum_size(state.pInternal->stream, state.pInternal->field);
-    printf("State nBytes from C: %d", state.nBytes);
+    // printf("State nBytes from C: %d", state.nBytes);
 
     // Set pBytes
     state.pBytesHost = pBytesHost; //(uint8_t*)malloc(state.nBytes);
     state.pBytes = state.pBytesHost;
 #ifdef MFC_CUDA
     if (to == c_compress_loc_device) {
-        // const cudaError_t cu_err = cudaMalloc((void**)&state.pBytesDev, state.nBytes);
         state.pBytesDev = pBytesDev;
-        // if (cu_err != cudaSuccess) {
-        //     zfp_field_free(state.pInternal->field);
-        //     printf("[c_compress_init] Error: cudaMalloc returned %d.", (int)cu_err);
-        //     return state;
-        // }
         state.pBytes = state.pBytesDev;
-        // acc_map_data(state.pBytesHost, state.pBytesDev, state.nBytes);
-        // state.pBytes = acc_malloc(state.nBytes);
-        // if(!state.pBytes){
-        //     printf("[c_compress_init] Error: acc_malloc failed.");
-        // }
     } else {
 #endif
 
@@ -262,7 +219,7 @@ size_t c_decompress(c_compress_state_t* const pState) {
 
     const size_t offset = zfp_decompress(pState->pInternal->stream, pState->pInternal->field);
 
-    printf("c_decompress = %d\n", (int)offset);
+    // printf("c_decompress = %d\n", (int)offset);
 
     return offset;
 }
