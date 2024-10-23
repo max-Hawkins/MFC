@@ -86,11 +86,12 @@ Definition of the parameters is described in the following subsections.
 
 ### 1. Runtime
 
-| Parameter        | Type           | Description                               |
-| ---:             |    :----:      |          :---                             |
-| `run_time_info`  | Logical        | Output run-time information               |
-| `rdma_mpi`       | Logical        | (GPUs) Enable RDMA for MPI communication. |
-| `zfp_halo`       | Logical        | Compresses exchanged halo data using ZFP  |
+| Parameter             | Type           | Description                               |
+| ---:                  |    :----:      |          :---                             |
+| `run_time_info`       | Logical        | Output run-time information               |
+| `rdma_mpi`            | Logical        | (GPUs) Enable RDMA for MPI communication. |
+| `zfp_halo`            | Logical        | Compresses exchanged halo data using ZFP  |
+| `zfp_halo_rate`       | Integer        | Fixed rate compression parameter  |
 
 - `run_time_info` generates a text file that includes run-time information including the CFL number(s) at each time-step.
 - `rdma_mpi` optimizes data transfers between GPUs using Remote Direct Memory Access (RDMA).
@@ -99,6 +100,7 @@ feature, detecting GPU pointers and performing RDMA accordingly.
 - `zfp_halo` compresses the halo region data that is exchanged with nearest-neighbor
 processes using ZFP. This may not necessarily lead to runtime speedups. User consideration
 is heavily advised.
+- `zfp_halo_rate` sets the fixed-rate compression parameter of the ZFP compression. See the ZFP documentation for details.
 
 ### 2. Computational Domain
 

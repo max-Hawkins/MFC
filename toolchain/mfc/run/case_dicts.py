@@ -221,6 +221,7 @@ SIMULATION.update({
     'cfl_target': ParamType.REAL,
     'low_Mach': ParamType.INT,
     'zfp_halo': ParamType.LOG,
+    'zfp_halo_rate': ParamType.REAL,
 })
 
 for var in [ 'advection', 'diffusion', 'reactions' ]:

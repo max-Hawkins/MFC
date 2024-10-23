@@ -147,7 +147,7 @@ contains
             alt_soundspeed, mixture_err, weno_Re_flux, &
             null_weights, precision, parallel_io, cyl_coord, &
             rhoref, pref, bubbles, bubble_model, &
-            R0ref, chem_params, zfp_halo, &
+            R0ref, chem_params, zfp_halo, zfp_halo_rate &
 #:if not MFC_CASE_OPTIMIZATION
             nb, mapped_weno, wenoz, teno, weno_order, num_fluids, &
 #:endif
