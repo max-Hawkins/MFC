@@ -83,8 +83,6 @@ module m_mpi_proxy
 
     !$acc declare create(zfp_compressed_buffer_send, zfp_compressed_buffer_recv)
 
-    #define ZFP_RATE 64.0
-
     type(c_ptr) :: c_ptr_buff_send_host, c_ptr_buff_recv_host
     type(c_devptr) :: c_ptr_buff_send_dev, c_ptr_buff_recv_dev
     integer :: zfp_buffer_n_doubles_recv, zfp_buffer_n_doubles_send
@@ -220,8 +218,9 @@ contains
                 endif
             end do
 
-            zfp_buffer_n_doubles_send = f_compress_init_get_size(c_loc(q_cons_buff_send), buffer_count, ZFP_RATE, 1, 1)
-            zfp_buffer_n_doubles_recv = f_compress_init_get_size(c_loc(q_cons_buff_recv), buffer_count, ZFP_RATE, 1, 1)
+            ! TODO: Deallocate the intermediate state properly
+            zfp_buffer_n_doubles_send = f_compress_init_get_size(c_loc(q_cons_buff_send), buffer_count, zfp_halo_rate, 1, 1)
+            zfp_buffer_n_doubles_recv = f_compress_init_get_size(c_loc(q_cons_buff_recv), buffer_count, zfp_halo_rate, 1, 1)
             ! print *, "ZFP_buffer n doubles: ", zfp_buffer_n_doubles_send
             ! print *, "ZFP_buffer n doubles: ", zfp_buffer_n_doubles_recv
 
@@ -248,7 +247,7 @@ contains
         call MPI_BCAST(case_dir, len(case_dir), MPI_CHARACTER, 0, MPI_COMM_WORLD, ierr)
 
         #:for VAR in ['k_x', 'k_y', 'k_z', 'w_x', 'w_y', 'w_z', 'p_x', 'p_y', &
-            & 'p_z', 'g_x', 'g_y', 'g_z']
+            & 'p_z', 'g_x', 'g_y', 'g_z', 'zfp_halo_rate']
             call MPI_BCAST(${VAR}$, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
         #:endfor
 
@@ -1172,7 +1171,7 @@ contains
                                                             ! c_loc(p_send), & ! Pointer to data to compress
                                                             acc_deviceptr(p_send), &
                                                             buffer_count, & ! # of doubles
-                                                            ZFP_RATE, & ! Fixed Rate precision
+                                                            zfp_halo_rate, & ! Fixed Rate precision
                                                             1, & ! From device (1=GPU)
                                                             1); ! To device (1=GPU)
                     compress_state_recv = f_compress_init(c_ptr_buff_recv_host, &
@@ -1180,7 +1179,7 @@ contains
                                                             ! c_loc(p_recv), & ! Pointer to data to compress
                                                             acc_deviceptr(p_recv), &
                                                             buffer_count, & ! # of doubles
-                                                            ZFP_RATE, & ! Fixed Rate precision
+                                                            zfp_halo_rate, & ! Fixed Rate precision
                                                             1, & ! From device (1=GPU)
                                                             1); ! To device (1=GPU)
                     call nvtxEndRange ! ZFP-Init

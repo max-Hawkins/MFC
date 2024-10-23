@@ -487,7 +487,8 @@ module m_global_parameters
     real(kind(0d0)) :: mytime       !< Current simulation time
     real(kind(0d0)) :: finaltime    !< Final simulation time
 
-    logical :: weno_flat, riemann_flat, rdma_mpi
+    logical :: weno_flat, riemann_flat, rdma_mpi, zfp_halo
+    real :: zfp_halo_rate
 
 #ifdef CRAY_ACC_WAR
     @:CRAY_DECLARE_GLOBAL(type(pres_field), dimension(:), pb_ts)
@@ -569,6 +570,8 @@ contains
         viscous = .false.
         shear_stress = .false.
         bulk_stress = .false.
+        zfp_halo = .false.
+        zfp_halo_rate = 64
 
         #:if not MFC_CASE_OPTIMIZATION
             mapped_weno = .false.
