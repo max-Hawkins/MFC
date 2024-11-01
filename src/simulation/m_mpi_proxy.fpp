@@ -80,6 +80,7 @@ module m_mpi_proxy
     !! immersed boundary markers, for a single computational domain boundary
     !! at the time, from the relevant neighboring processor.
 
+    type(t_compress_state) :: compress_state_send, compress_state_recv
     real(kind(0d0)), allocatable, dimension(:), target :: zfp_compressed_buffer_send
     real(kind(0d0)), allocatable, dimension(:), target :: zfp_compressed_buffer_recv
 
@@ -229,6 +230,28 @@ contains
             ! Allocate the buffer based on the size returned (as doubles)
             @:ALLOCATE_GLOBAL(zfp_compressed_buffer_send(zfp_buffer_n_doubles_send / sizeof(1.0d0)))
             @:ALLOCATE_GLOBAL(zfp_compressed_buffer_recv(zfp_buffer_n_doubles_recv / sizeof(1.0d0)))
+
+            c_ptr_buff_send_host   =         c_loc(zfp_compressed_buffer_send)
+            c_ptr_buff_recv_host   =         c_loc(zfp_compressed_buffer_recv)
+            c_ptr_buff_send_dev = acc_deviceptr(zfp_compressed_buffer_send)~
+            c_ptr_buff_recv_dev = acc_deviceptr(zfp_compressed_buffer_recv)
+
+            compress_state_send = f_compress_init(c_ptr_buff_send_host, &
+                                                    c_ptr_buff_send_dev, &
+                                                    ! c_loc(p_send), & ! Pointer to data to compress
+                                                    acc_deviceptr(q_cons_buff_send(0)), &
+                                                    buffer_count, & ! # of doubles
+                                                    zfp_halo_rate, & ! Fixed Rate precision
+                                                    1, & ! From device (1=GPU)
+                                                    1); ! To device (1=GPU)
+            compress_state_recv = f_compress_init(c_ptr_buff_recv_host, &
+                                                    c_ptr_buff_recv_dev, &
+                                                    ! c_loc(p_recv), & ! Pointer to data to compress
+                                                    acc_deviceptr(q_cons_buff_recv(0)), &
+                                                    buffer_count, & ! # of doubles
+                                                    zfp_halo_rate, & ! Fixed Rate precision
+                                                    1, & ! From device (1=GPU)
+                                                    1); ! To device (1=GPU)
         end if
 
 #endif
@@ -937,7 +960,6 @@ contains
         real(kind(0d0)), pointer :: p_send, p_recv, p_send_zfp, p_recv_zfp
         integer, pointer, dimension(:) :: p_i_send, p_i_recv
 
-        type(t_compress_state) :: compress_state_send, compress_state_recv
         integer :: compress_send_offset, compress_recv_offset
 
 #ifdef MFC_MPI
@@ -1158,42 +1180,22 @@ contains
                     p_send_zfp => zfp_compressed_buffer_send(0)
                     p_recv_zfp => zfp_compressed_buffer_recv(0)
 
-                    c_ptr_buff_send_host   =         c_loc(zfp_compressed_buffer_send)
-                    c_ptr_buff_recv_host   =         c_loc(zfp_compressed_buffer_recv)
-                    c_ptr_buff_send_dev = acc_deviceptr(zfp_compressed_buffer_send)~
-                    c_ptr_buff_recv_dev = acc_deviceptr(zfp_compressed_buffer_recv)
-                    ! print *, "MPI_dir: ", mpi_dir, "  p_send present: ", acc_is_present(q_cons_buff_send)
+                    ! Since each MPI direction may be different, we have to update the field (relatively cheap)
+                    ! Update the pointer of the data to compress/decompress and the buffer count
+                    call s_compress_update_field(compress_state_send, acc_deviceptr(p_send), buffer_count)
+                    call s_compress_update_field(compress_state_recv, acc_deviceptr(p_recv), buffer_count)
 
-                    compress_state_send = f_compress_init(c_ptr_buff_send_host, &
-                                                            c_ptr_buff_send_dev, &
-                                                            ! c_loc(p_send), & ! Pointer to data to compress
-                                                            acc_deviceptr(p_send), &
-                                                            buffer_count, & ! # of doubles
-                                                            zfp_halo_rate, & ! Fixed Rate precision
-                                                            1, & ! From device (1=GPU)
-                                                            1); ! To device (1=GPU)
-                    compress_state_recv = f_compress_init(c_ptr_buff_recv_host, &
-                                                            c_ptr_buff_recv_dev, &
-                                                            ! c_loc(p_recv), & ! Pointer to data to compress
-                                                            acc_deviceptr(p_recv), &
-                                                            buffer_count, & ! # of doubles
-                                                            zfp_halo_rate, & ! Fixed Rate precision
-                                                            1, & ! From device (1=GPU)
-                                                            1); ! To device (1=GPU)
                     call nvtxEndRange ! ZFP-Init
                 #:endif
 
                 #:if rdma_mpi
-                    print *, "Using RDMA_MPI"
                     ! Attach the send/receive buffers to our target and
                     ! allow the send and receive buffers to be used from host
                     #:if zfp_halo
-                        print *, "Using ZFP Halo!"
                         ! TODO: Test this when we have a working GPUDirectRDMA system
                         ! ! $acc data attach(compress_state_send%p_zfp_compressed_buffer)
                         ! ! $acc host_data use_device(compress_state_send%p_zfp_compressed_buffer)
                     #:else
-                        print *, "Not using ZFP Halo!"
                         !$acc data attach(p_send, p_recv)
                         !$acc host_data use_device(p_send, p_recv)
                     #:endif
@@ -1209,7 +1211,6 @@ contains
                     call nvtxStartRange("RHS-COMM-MPISENDRECV-NO-RDMA")
                 #:endif
 
-
                 ! @:ALLOCATE(q_cons_buff_send_before_compress(100))
                 ! print *, "Showing q_cons_send_buff before compress: "
                 ! !$acc update host(q_cons_buff_send)
@@ -1219,8 +1220,6 @@ contains
                 ! end do
 
                 #:if zfp_halo
-                    ! print *, "Raw buffer size: ", buffer_count * 8, " bytes" !double
-
                     ! Compress buffer
                     call nvtxStartRange("ZFP-Compress")
                     compress_send_offset = f_compress(compress_state_send);
