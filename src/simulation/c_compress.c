@@ -205,6 +205,13 @@ c_compress_state_t c_compress_init(
     return state;
 }
 
+void c_compress_update_field(c_compress_state_t* const pState,
+                            const C_TYPE*          pDoublesNew, /* Buffer of doubles to compress from & decompress to. */
+                            const size_t           nDoublesNew /* Number of doubles to compress from & decompress to. */){
+    zfp_field_set_pointer(pState->pInternal->field,  pDoublesNew);
+    zfp_field_set_size_1d(pState->pInternal->field, nDoublesNew);
+}
+
 size_t c_compress(c_compress_state_t* const pState) {
     zfp_stream_rewind(pState->pInternal->stream);
     // printf("ZFP Compressing data: %d", (double*)(pState->pInternal->field->data));

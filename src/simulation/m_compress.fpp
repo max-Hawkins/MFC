@@ -64,6 +64,14 @@ module m_compress
             type(c_ptr),       value :: pBytesHost
         end subroutine c_compress_init_post_alloc
 
+        subroutine c_compress_update_field(pState,pDoublesNew,nDoublesNew) bind(c, name='c_compress_update_field')
+            import
+
+            type(c_ptr),       value :: pState
+            type(c_devptr),       value :: pDoublesNew
+            integer(c_size_t), value :: nDoublesNew
+        end subroutine c_compress_update_field
+
         function c_compress(pState) result(offset) bind(c, name='c_compress')
             import
 
@@ -130,6 +138,14 @@ module m_compress
             state = c_compress_init(pBytesHost, pBytesDev, pDoubles, int(nDoubles, c_size_t), real(rate, c_double), int(from, c_int), int(to, c_int))
 
         end function f_compress_init
+
+        subroutine s_compress_update_field(state, pDoublesNew, nDoublesNew)
+            type(t_compress_state), target, intent(in) :: state
+            type(c_devptr), intent(in) :: pDoublesNew
+            integer,     intent(in) :: nDoublesNew
+
+            call c_compress_update_field(c_loc(state), pDoublesNew, int(nDoublesNew, c_size_t))
+        end subroutine s_compress_update_field
 
         function f_compress(state) result(offset)
             type(t_compress_state), target, intent(in) :: state
