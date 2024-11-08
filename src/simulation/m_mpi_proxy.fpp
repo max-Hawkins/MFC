@@ -29,6 +29,8 @@ module m_mpi_proxy
 
     use m_nvtx
 
+    use m_compress
+
     use ieee_arithmetic
 
     use, intrinsic :: iso_c_binding, only: c_ptr, c_null_ptr, c_size_t, c_loc, c_int, c_double, c_devptr
@@ -292,7 +294,7 @@ contains
             & 'prim_vars_wrt', 'weno_avg', 'file_per_process', 'relax',          &
             & 'adv_n', 'adap_dt', 'ib', 'bodyForces', 'bf_x', 'bf_y', 'bf_z',    &
             & 'cfl_adap_dt', 'cfl_const_dt', 'cfl_dt', 'surface_tension',        &
-            & 'viscous', 'shear_stress', 'bulk_stress' ]
+            & 'viscous', 'shear_stress', 'bulk_stress', 'zfp_halo' ]
             call MPI_BCAST(${VAR}$, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
         #:endfor
 
