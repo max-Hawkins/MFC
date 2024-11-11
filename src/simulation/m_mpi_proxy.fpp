@@ -1181,8 +1181,8 @@ contains
                     ! Initialize ZFP compression struct
                     call nvtxStartRange("ZFP-Init")
 
-                    p_send_zfp => zfp_compressed_buffer_send(0)
-                    p_recv_zfp => zfp_compressed_buffer_recv(0)
+                    ! p_send_zfp => zfp_compressed_buffer_send(0)
+                    ! p_recv_zfp => zfp_compressed_buffer_recv(0)
 
                     ! Since each MPI direction may be different, we have to update the field (relatively cheap)
                     ! Update the pointer of the data to compress/decompress and the buffer count
@@ -1227,7 +1227,7 @@ contains
                     ! Compress buffer
                     call nvtxStartRange("ZFP-Compress")
                     compress_send_offset = f_compress(compress_state_send);
-                    ! print *, "Compressed send size: ", compress_send_offset, " bytes"
+                    ! print *, "Buffer size: ", buff_size * 8, "Compressed send size: ", compress_send_offset, " bytes"
                     call nvtxEndRange ! ZFP-Compress
                 #:endif
 
