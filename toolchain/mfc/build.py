@@ -132,9 +132,6 @@ class MFCTarget:
             # Location prefix to install bin/, lib/, include/, etc.
             # See: https://cmake.org/cmake/help/latest/command/install.html.
             f"-DCMAKE_INSTALL_PREFIX={install_dirpath}",
-            # Fortran .mod include directories. Currently used for the HIPFORT
-            # dependency that has this missing from its config files.
-            f"-DCMAKE_Fortran_MODULE_DIRECTORY={mod_dirs}",
             # ZFP
             f"-DZFP_DIR=/storage/home/hcoda1/7/mhawkins60/local/zfp/build_mfc/"
         ]
