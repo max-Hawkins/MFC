@@ -233,7 +233,7 @@ contains
 
             c_ptr_buff_send_host   =         c_loc(zfp_compressed_buffer_send)
             c_ptr_buff_recv_host   =         c_loc(zfp_compressed_buffer_recv)
-            c_ptr_buff_send_dev = acc_deviceptr(zfp_compressed_buffer_send)~
+            c_ptr_buff_send_dev = acc_deviceptr(zfp_compressed_buffer_send)
             c_ptr_buff_recv_dev = acc_deviceptr(zfp_compressed_buffer_recv)
 
             compress_state_send = f_compress_init(c_ptr_buff_send_host, &
@@ -964,6 +964,7 @@ contains
         integer :: pack_offset, unpack_offset
         real(kind(0d0)), pointer :: p_send, p_recv
 
+        integer :: mpi_sendrecv_status(MPI_STATUS_SIZE)
         integer :: compress_send_offset, compress_recv_offset
 
 #ifdef MFC_MPI
@@ -1209,7 +1210,7 @@ contains
                 #:if (not rdma_mpi) and (not zfp_halo)
                     ! If not using GPUDirect RDMA, manually copy device data to host
                     call nvtxStartRange("RHS-COMM-DEV2HOST")
-                    !$acc update host(q_cons_buff_send, ib_buff_send)
+                    !$acc update host(q_cons_buff_send)
                     call nvtxEndRange
 
                     call nvtxStartRange("RHS-COMM-MPISENDRECV-NO-RDMA")
@@ -1248,7 +1249,7 @@ contains
                     ! Compress data on GPU before transferring to CPU
                     ! If not using GPUDirect RDMA, manually copy device data to host
                     call nvtxStartRange("RHS-COMM-DEV2HOST")
-                    !$acc update host(zfp_compressed_buffer_send)
+                    !$acc update host(zfp_compressed_buffer_send(:compress_send_offset /8))
                     call nvtxEndRange
 
                     call nvtxStartRange("RHS-COMM-MPISENDRECV-NO-RDMA")
@@ -1258,9 +1259,11 @@ contains
                 #:if zfp_halo
                     ! Exchange compressed halo regions
                     call MPI_SENDRECV( &
-                        zfp_compressed_buffer_send, compress_send_offset,       MPI_CHAR, dst_proc, send_tag, &
+                        zfp_compressed_buffer_send, compress_send_offset,            MPI_CHAR, dst_proc, send_tag, &
                         zfp_compressed_buffer_recv, int(compress_state_recv%nbytes), MPI_CHAR, src_proc, recv_tag, &
-                        MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
+                        MPI_COMM_WORLD, mpi_sendrecv_status, ierr)
+
+                    call MPI_GET_COUNT(mpi_sendrecv_status, MPI_CHAR, compress_recv_offset, ierr)
                 #:else
                     call MPI_SENDRECV( &
                         p_send, buffer_count, MPI_DOUBLE_PRECISION, dst_proc, send_tag, &
@@ -1273,7 +1276,7 @@ contains
                 ! compressed bitstream back to GPU for decompression
                 #:if (not rdma_mpi) and zfp_halo
                     call nvtxStartRange("RHS-COMM-HOST2DEV")
-                    !$acc update device(zfp_compressed_buffer_recv)
+                    !$acc update device(zfp_compressed_buffer_recv(:compress_recv_offset / 8))
                     call nvtxEndRange
                 #:endif
 
