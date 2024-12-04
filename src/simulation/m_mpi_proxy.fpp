@@ -1177,7 +1177,6 @@ contains
 
                 #:if zfp_halo
                     ! Initialize ZFP TODO: Do this once at start of program
-                    call nvtxStartRange("ZFP")
 
                     ! Initialize ZFP compression struct
                     call nvtxStartRange("ZFP-Init")
@@ -1193,19 +1192,6 @@ contains
                     call nvtxEndRange ! ZFP-Init
                 #:endif
 
-                #:if rdma_mpi
-                    ! Attach the send/receive buffers to our target and
-                    ! allow the send and receive buffers to be used from host
-                    #:if zfp_halo
-                        ! TODO: Test this when we have a working GPUDirectRDMA system
-                        ! ! $acc data attach(compress_state_send%p_zfp_compressed_buffer)
-                        ! ! $acc host_data use_device(compress_state_send%p_zfp_compressed_buffer)
-                    #:else
-                        !$acc data attach(p_send, p_recv)
-                        !$acc host_data use_device(p_send, p_recv)
-                    #:endif
-                    call nvtxStartRange("RHS-COMM-MPISENDRECV-RDMA")
-                #:endif
 
                 #:if (not rdma_mpi) and (not zfp_halo)
                     ! If not using GPUDirect RDMA, manually copy device data to host
@@ -1255,6 +1241,13 @@ contains
                     call nvtxStartRange("RHS-COMM-MPISENDRECV-NO-RDMA")
                 #:endif
 
+                #:if rdma_mpi
+                    ! Attach the send/receive buffers to our target and
+                    ! allow the send and receive buffers to be used from host
+                    !$acc host_data use_device(q_cons_buff_send, q_cons_buff_recv, zfp_compressed_buffer_send, zfp_compressed_buffer_send)
+                    call nvtxStartRange("RHS-COMM-MPISENDRECV-RDMA")
+                #:endif
+
 
                 #:if zfp_halo
                     ! Exchange compressed halo regions
@@ -1266,8 +1259,8 @@ contains
                     call MPI_GET_COUNT(mpi_sendrecv_status, MPI_CHAR, compress_recv_offset, ierr)
                 #:else
                     call MPI_SENDRECV( &
-                        p_send, buffer_count, MPI_DOUBLE_PRECISION, dst_proc, send_tag, &
-                        p_recv, buffer_count, MPI_DOUBLE_PRECISION, src_proc, recv_tag, &
+                        q_cons_buff_send, buffer_count, MPI_DOUBLE_PRECISION, dst_proc, send_tag, &
+                        q_cons_buff_recv, buffer_count, MPI_DOUBLE_PRECISION, src_proc, recv_tag, &
                         MPI_COMM_WORLD, MPI_STATUS_IGNORE, ierr)
                 #:endif
                 call nvtxEndRange ! RHS-COMM-MPISENDRECV-(NO)-RDMA
@@ -1303,9 +1296,8 @@ contains
                 !     print *, q_cons_buff_recv(i)
                 ! end do
 
-                #:if rdma_mpi and (not zfp_halo)
+                #:if rdma_mpi
                    !$acc end host_data
-                   !$acc end data
                    !$acc wait
                 #:endif
                 ! TODO: Properly handle CPU/GPU ZFP compression execution options
