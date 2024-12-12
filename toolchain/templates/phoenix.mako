@@ -41,10 +41,11 @@ echo
     % if not mpi:
         (set -x; ${profiler} "${target.get_install_binpath(case)}")
     % else:
-        (set -x; ${profiler}    \
+        (set -x;     \
             mpirun -N ${tasks_per_node}            \
                    -np ${nodes*tasks_per_node} \
                    --bind-to none                         \
+                   ${profiler} \
                    "${target.get_install_binpath(case)}")
     % endif
 
