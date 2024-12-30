@@ -133,7 +133,7 @@ class MFCTarget:
             # See: https://cmake.org/cmake/help/latest/command/install.html.
             f"-DCMAKE_INSTALL_PREFIX={install_dirpath}",
             # ZFP
-            f"-DZFP_DIR=/storage/home/hcoda1/7/mhawkins60/local/zfp/build_mfc/"
+            f"-DZFP_DIR=/storage/home/hcoda1/7/mhawkins60/local/zfp/build_101/"
         ]
 
         if ARG("verbose"):
