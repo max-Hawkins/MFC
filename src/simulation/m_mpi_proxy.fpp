@@ -1217,6 +1217,7 @@ contains
                     call nvtxStartRange("ZFP-Compress")
                     compress_send_offset = f_compress(compress_state_send);
                     ! print *, "Buffer size: ", buff_size * 8, "Compressed send size: ", compress_send_offset, " bytes"
+                    !$acc wait
                     call nvtxEndRange ! ZFP-Compress
                 #:endif
 
@@ -1246,7 +1247,14 @@ contains
                 #:if rdma_mpi
                     ! Attach the send/receive buffers to our target and
                     ! allow the send and receive buffers to be used from host
-                    !$acc host_data use_device(q_cons_buff_send, q_cons_buff_recv, zfp_compressed_buffer_send, zfp_compressed_buffer_send)
+
+                    #:if zfp_halo
+                        !$acc host_data use_device(zfp_compressed_buffer_send, zfp_compressed_buffer_recv)
+                    #:else
+                        !$acc host_data use_device(q_cons_buff_send, q_cons_buff_recv)
+                    #:endif
+                    ! Ensure NVTX timing is exactly what we want
+                    !$acc wait
                     call nvtxStartRange("RHS-COMM-MPISENDRECV-RDMA")
                 #:endif
 
@@ -1287,6 +1295,7 @@ contains
                     call nvtxStartRange("ZFP-Decompress")
                     ! Returned value is the number of bytes in the compressed bitstream
                     compress_recv_offset = f_decompress(compress_state_recv);
+                    !$acc wait
                     ! print *, "Decompressed recv size: ", compress_recv_offset, " bytes"
 
                     call nvtxEndRange ! ZFP-Decompress
