@@ -1027,7 +1027,7 @@ contains
                         do k = 0, n
                             do j = 0, buff_size - 1
                                 do i = 1, sys_size
-                                    r = (i - 1) + v_size*(j + buff_size*(k + (n + 1)*l))
+                                    r = j + buff_size*(k + (n + 1)*(l + (i - 1)*(p + 1)))
                                     q_cons_buff_send(r) = q_cons_vf(i)%sf(j + pack_offset, k, l)
                                 end do
                             end do
@@ -1071,9 +1071,7 @@ contains
                         do l = 0, p
                             do k = 0, buff_size - 1
                                 do j = -buff_size, m + buff_size
-                                    r = (i - 1) + v_size* &
-                                        ((j + buff_size) + (m + 2*buff_size + 1)* &
-                                         (k + buff_size*l))
+                                    r = k + buff_size*(j + (m + 2*buff_size + 1)*(l + (i - 1)*(p + 1)))
                                     q_cons_buff_send(r) = q_cons_vf(i)%sf(j, k + pack_offset, l)
                                 end do
                             end do
@@ -1119,9 +1117,7 @@ contains
                         do l = 0, buff_size - 1
                             do k = -buff_size, n + buff_size
                                 do j = -buff_size, m + buff_size
-                                    r = (i - 1) + v_size* &
-                                        ((j + buff_size) + (m + 2*buff_size + 1)* &
-                                         ((k + buff_size) + (n + 2*buff_size + 1)*l))
+                                    r = l + buff_size*(k + (n + 2*buff_size + 1)*(j + (m + 2*buff_size + 1)*(i - 1)))
                                     q_cons_buff_send(r) = q_cons_vf(i)%sf(j, k, l + pack_offset)
                                 end do
                             end do
@@ -1332,8 +1328,7 @@ contains
                         do k = 0, n
                             do j = -buff_size, -1
                                 do i = 1, sys_size
-                                    r = (i - 1) + v_size* &
-                                        (j + buff_size*((k + 1) + (n + 1)*l))
+                                    r = (j + buff_size) + buff_size*(k + (n + 1)*(l + (i - 1)*(p + 1)))
                                     q_cons_vf(i)%sf(j + unpack_offset, k, l) = q_cons_buff_recv(r)
 #if defined(__INTEL_COMPILER)
                                     if (ieee_is_nan(q_cons_vf(i)%sf(j, k, l))) then
@@ -1383,9 +1378,7 @@ contains
                         do l = 0, p
                             do k = -buff_size, -1
                                 do j = -buff_size, m + buff_size
-                                    r = (i - 1) + v_size* &
-                                        ((j + buff_size) + (m + 2*buff_size + 1)* &
-                                         ((k + buff_size) + buff_size*l))
+                                    r = (k + buff_size) + buff_size*(j + (m + 2*buff_size + 1)*(l + (i - 1)*(p + 1)))
                                     q_cons_vf(i)%sf(j, k + unpack_offset, l) = q_cons_buff_recv(r)
 #if defined(__INTEL_COMPILER)
                                     if (ieee_is_nan(q_cons_vf(i)%sf(j, k, l))) then
@@ -1438,10 +1431,7 @@ contains
                         do l = -buff_size, -1
                             do k = -buff_size, n + buff_size
                                 do j = -buff_size, m + buff_size
-                                    r = (i - 1) + v_size* &
-                                        ((j + buff_size) + (m + 2*buff_size + 1)* &
-                                         ((k + buff_size) + (n + 2*buff_size + 1)* &
-                                          (l + buff_size)))
+                                    r = (l + buff_size) + buff_size*(k + (n + 2*buff_size + 1)*(j + (m + 2*buff_size + 1)*(i - 1)))
                                     q_cons_vf(i)%sf(j, k, l + unpack_offset) = q_cons_buff_recv(r)
 #if defined(__INTEL_COMPILER)
                                     if (ieee_is_nan(q_cons_vf(i)%sf(j, k, l))) then
