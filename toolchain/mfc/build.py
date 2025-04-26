@@ -103,6 +103,8 @@ class MFCTarget:
             t.get_install_dirpath(case) for t in self.requires.compute()
         ])
 
+        ZFP_INSTALL_DIR = os.environ.get('ZFP_INSTALL_DIR', None)
+
         flags: list = self.flags.copy() + [
             # Disable CMake warnings intended for developers (us).
             # See: https://cmake.org/cmake/help/latest/manual/cmake.1.html.
@@ -133,7 +135,7 @@ class MFCTarget:
             # See: https://cmake.org/cmake/help/latest/command/install.html.
             f"-DCMAKE_INSTALL_PREFIX={install_dirpath}",
             # ZFP
-            f"-DZFP_DIR=/storage/home/hcoda1/7/mhawkins60/local/zfp/build_101/"
+            f"-DZFP_DIR={ZFP_INSTALL_DIR}"
         ]
 
         if ARG("verbose"):
